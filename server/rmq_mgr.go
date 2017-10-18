@@ -4,7 +4,7 @@ import (
 	"../gen-go/rmq_service"
 
 	"git.apache.org/thrift.git/lib/go/thrift"
-	log "github.com/cihub/seelog"
+	"github.com/cihub/seelog"
 
 	"time"
 	"errors"
@@ -32,13 +32,13 @@ func (r.Rmq_mgr) Init(host string, port string) (err error){
 	addr := fmt.Sprintf("%v:%v",host,port)
 
 	r.transportFactory = thrift.NewTBufferedTransportFactory(10240)
-	r.protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
-	r.transport,err := thrift.NewTSocketTimeout(mqadds[i], 10*time.Second)
+	r.protocolFactory = thrift.NewTBinaryProtocolFactoryDefault()
+	r.transport,err = thrift.NewTSocketTimeout(addr, 10*time.Second)
 	if err != nil{
-		log.Error("thrift.NewTSocket err is: %v",err);
+		seelog.Error("thrift.NewTSocket err is: %v",err);
 		return err;
 	}else{
-		log.Debugf("connected %v successful",addr);
+		seelog.Debugf("connected %v successful",addr);
 	}
 
 	useTransport := r.transportFactory.GetTransport(r.transport)
@@ -59,10 +59,42 @@ func (r *Rmq_mgr) Fini() (err error){
 	return
 }
 
+//重连rmq
 func (r *Rmq_mgr) Reset() (err error){
 	seelog.Debug("reset enter")
 	err = e.Fini()
+	if err != nil{
+		seelog.Error("reset rmq fini err is : %v",err)
+		return
+	}
+	err = r.Init(r.host,r.port)
+	if err != nil{
+		seelog.Error("reset rmq init err is : %v",err)
+		return err
+	}
+	return
+}
 
+func (r *Rmq_mgr) ConsumeMsg(topic string,body string) (consume_reply int64, consume_err error){
+	var msg rmq_adapter.MTRMessage
+	msg.Topic = topic
+	msg.Body = []byte(body) //强转成字节类型的切片
+	msg.Protocol = rmq_adapter.MTRProtocol_PERSONALIZED
 
-
+	var resendMaxTimes, resendTime =3, 0
+	for{
+		if resendTime > resendMaxTimes{
+			consume_err = errors.New("resend three times failed")
+			seelog.Error("resend three times failed")
+			return consume_reply,consume_err
+		}
+		consume_reply, consume_err = r.server.Consume(&msg,true)
+		if consume_err != nil{
+			resendTime += 1
+			continue
+		}
+		seelog.Debugf("send msg success")
+		return
+	}
+	return
 }
