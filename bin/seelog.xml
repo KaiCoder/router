@@ -1,0 +1,11 @@
+<seelog>
+    <outputs formatid="main">
+        <filter levels="debug,critical,error,warn">
+            <rollingfile type="size" filename="../log/router.log" maxsize="204800000" maxrolls="20"/>
+            <!--<file path="router_log.txt" />-->
+        </filter>
+    </outputs>
+    <formats>
+        <format id="main" format="%Date/%Time [%LEV] %Msg%n"/>
+    </formats>
+</seelog>
