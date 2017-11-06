@@ -12,27 +12,26 @@ func init() {
 }
 
 func SendMessage(msg []byte, appid string) error { //向sea发送消息
-	server,addr := GetServerByAppID(appid) //根据AppID获取sea服务  返回*net_int.CountServiceClient和string
-	if server == nil {
-		if strings.Compare(addr , "flag") == 0 {
-			seelog.Warn("not found server in current pool")
-		} else {
+	srv,status := GetServerByAppID(appid) //根据AppID获取sea服务  返回*net_int.CountServiceClient和string
+	if !status{
+	//	if strings.Compare(addr , "flag") == 0 {
+	//		seelog.Warn("not found server in current pool")
+	//	} else {
 			seelog.Warnf("not found server by appID<%s>", appid)
-		}
+	//	}
 		return errors.New("not found server by appID")
 	}
 
 	//send message
-	intval, err := server.SendMessageToServer(nil, string(msg[:]))
-
-	ReleaseServer(server, addr)
+	intval, err := srv.server.SendMessageToServer(nil, string(msg[:]))
+	//ReleaseServer(server, addr)
 	if err != nil {
 		seelog.Errorf("send message to collector_server fail %s", err)
-		HandleError(server, addr)
+		HandleError(srv)
 		return err
 	} else {
 		seelog.Infof("send message to collector_server success,retval <%d>", intval)
-		UpdateServerStatus(server)
+		UpdateServerStatus(srv)
 		return nil
 	}
 }
@@ -60,7 +59,6 @@ func HandleMessage(msg []byte, m_type int32) error { //处理rmq消息
 		seelog.Error("not found parse type")
 		return errors.New("not found parse type")
 	}
-
 	return nil
 }
 
